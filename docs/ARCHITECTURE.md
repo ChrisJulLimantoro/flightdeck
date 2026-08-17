@@ -163,9 +163,14 @@ export class ThreadStore {
 }
 ```
 
-`pendingAsk` as `$derived` is the structural improvement over the current code: today the approval
-prompt is imperatively created and torn down in `public/app.js:271-290`. As derived state it simply
-follows the event list and cannot desynchronise from it.
+Derived approval state is the structural improvement over the old code, where the prompt was
+imperatively created and torn down by reaching into the DOM by `data-ask-id`. As shipped,
+`ThreadStore.verdicts` derives an `askId -> Verdict` map straight from the event buffer and
+`ApprovalPrompt.svelte` reads it, so a resolved ask cannot desynchronise from the transcript.
+
+**TypeScript version, frontend:** `web/` is pinned to TS 5.9, not the TS 7 the backend spike cleared.
+`svelte-check@4` declares `typescript: ^5.0.0 || ^6.0.0`, so TS 7 is not usable there yet. This does
+not affect the Nest port, which has its own compiler.
 
 Keep the transcript append-only and key the `{#each}` by event index — Svelte 5 compiles to
 fine-grained updates, so appending stays O(1) per event.
@@ -260,19 +265,30 @@ Working baseline `tsconfig.json` for the backend:
 }
 ```
 
-## De-personalisation required before publishing
+## De-personalisation — done, and the scan-root plan was wrong
 
-The current code assumes one specific machine. Most of it already uses `homedir()` correctly, so
-the surface is small:
+The code assumed one specific machine. All of it is now resolved except one item:
 
-| Location | Issue |
-|---|---|
-| `lib/repos.js:9` | `ROOTS = [~/glair, ~/personal]` — hardcoded personal scan roots. **The blocker.** |
-| `public/index.html:95`, `README.md:22` | `GDP-ADMIN` org name in user-facing copy |
-| `lib/accounts.js:8`, `lib/seen.js:5` | `~/.ai-dashboard` — rename to `~/.flightdeck` |
-| `README.md` "Known environment issue" | machine-specific apparmor section; reframe as general troubleshooting |
+| Location | Issue | Status |
+|---|---|---|
+| `lib/repos.js:9` | `ROOTS = [~/glair, ~/personal]` — hardcoded scan roots. **The blocker.** | **fixed** — see below |
+| accounts modal, `README.md` | `GDP-ADMIN` org name in user-facing copy | **fixed** |
+| `lib/accounts.js:8`, `lib/seen.js:5` | `~/.ai-dashboard` | **fixed** — `~/.flightdeck`, migrated on boot |
+| `README.md` "Known environment issue" | machine-specific apparmor section | open |
 
-Scan roots move to `~/.flightdeck/config.json` via `@nestjs/config`, with a first-run UI prompt.
+**The planned fix — "scan roots move to config.json with a first-run UI prompt" — was the wrong
+design, and is superseded.** Making the user declare where their code lives is configuration for
+something a machine can just look up. `ReposService` instead walks `$HOME` to depth 3, pruning
+dotdirs and `node_modules`, and collects directories containing a `.git`. Measured at ~40ms for 32
+repos, and it finds `~/work/client/repo` layouts a fixed root list never would.
+
+Two follow-ons fell out of that:
+
+- The origin URL is read from `.git/config` rather than by spawning `git remote get-url` per
+  candidate — one file read instead of ~30 subprocesses per scan.
+- `~/.flightdeck/config.json` still exists, but every field is optional: `scanRoots` for checkouts
+  outside `$HOME`, and a `repos` slug→path map for anything discovery cannot find. **No first-run
+  prompt is needed**, which is the point — a stranger runs `npx flightdeck` and sees their PRs.
 
 ## Rejected alternatives
 
@@ -298,13 +314,21 @@ Scan roots move to `~/.flightdeck/config.json` via `@nestjs/config`, with a firs
 
 1. ~~Spike TS 7 + Nest decorator metadata~~ — **done, passed.** TS 7.0.2 + Nest 11 confirmed
    working; see the TypeScript section above for the verified `tsconfig.json`.
-2. npm workspaces: `server/`, `web/`, `shared/`. Type the event union in `shared/` first.
-3. Scaffold Nest; port `lib/` to services. `DeriveService` first (pure, easily tested).
-4. Define `EngineDriver`; `ClaudeDriver` real, `CodexDriver` stubbed.
-5. `@Sse()` gateway; `OnApplicationShutdown` to reap children.
-6. Rebuild `web/` in Svelte 5 runes; serve via `@nestjs/serve-static`.
-7. De-personalise; `~/.flightdeck/config.json` + first-run prompt.
-8. `bin` entry, `npx flightdeck`, publish.
+2. ~~npm workspaces + the event union in `shared/`~~ — **done.** `shared/` and `web/` are workspaces;
+   the backend stays at the repo root and moves to `server/` with the Nest port, so those files churn
+   once rather than twice.
+3. ~~Scaffold Nest; port `lib/` to services~~ — **done.** All eleven `lib/` modules are services in
+   `server/src`; `server.js` and `lib/` are gone. Tests are still owed.
+4. ~~Define `EngineDriver`~~ — **done**, with **both drivers real**. The doc's plan to stub
+   `CodexDriver` was written when Codex support lagged; `lib/engine.js` already had a working
+   implementation and stubbing it would have been a regression.
+5. ~~`@Sse()` gateway; `OnApplicationShutdown` to reap children~~ — **done.** The reaping is new
+   behaviour: the old server orphaned every spawned `codex` on `SIGTERM`.
+6. ~~Rebuild `web/` in Svelte 5 runes~~ — **done**, at feature parity with the old `public/`. Served
+   today by `express.static(web/dist)`; that line becomes `@nestjs/serve-static` with the Nest port.
+7. ~~De-personalise~~ — **done**, without the first-run prompt; see the section above.
+8. `npx flightdeck`: `bin` and `files` are wired, but publishing is unverified — `pnpm pack` and an
+   install-from-tarball smoke test on a clean machine are still owed.
 9. Feature work: `Autocomplete` + `/` skill provider, then `@` file provider with `FilesController`
    (git ls-files + traversal guard), then the diff viewer.
 10. SQLite persistence + restart rehydration.

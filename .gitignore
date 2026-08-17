@@ -5,6 +5,8 @@ node_modules/
 dist/
 build/
 web/dist/
+# the SPA, copied in by `pnpm build` — shipped in the npm tarball, not in git
+server/public/
 .vite/
 
 # logs

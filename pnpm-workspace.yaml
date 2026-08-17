@@ -1,0 +1,8 @@
+packages:
+  - shared
+  - web
+  - server
+# esbuild ships a platform binary and needs its install script to run; Vite
+# cannot bundle without it.
+allowBuilds:
+  esbuild: true

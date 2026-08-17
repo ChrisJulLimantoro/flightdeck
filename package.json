@@ -1,14 +1,17 @@
 {
-  "name": "ai-dashboard",
+  "name": "flightdeck-workspace",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Flight Deck — local dual-engine PR + agent-state dashboard",
+  "description": "Flight Deck — workspace root (the publishable package is server/)",
+  "packageManager": "pnpm@11.22.0",
   "scripts": {
-    "start": "node server.js"
+    "start": "pnpm -F flightdeck run start",
+    "dev": "pnpm -F @flightdeck/web run dev",
+    "build": "pnpm -F @flightdeck/web run build && pnpm -F flightdeck run build",
+    "check": "pnpm -r run check"
   },
-  "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.3.232",
-    "express": "^5.1.0"
+  "devDependencies": {
+    "typescript": "^5.9.3"
   }
 }
