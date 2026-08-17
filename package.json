@@ -9,9 +9,12 @@
     "start": "pnpm -F flightdeck run start",
     "dev": "pnpm -F @flightdeck/web run dev",
     "build": "pnpm -F @flightdeck/web run build && pnpm -F flightdeck run build",
-    "check": "pnpm -r run check"
+    "check": "pnpm -r run check",
+    "graph": "node scripts/codegraph.mjs",
+    "graph:check": "depcruise shared/src web/src server/src --config .dependency-cruiser.cjs --output-type err"
   },
   "devDependencies": {
+    "dependency-cruiser": "^18.2.0",
     "typescript": "^5.9.3"
   }
 }
