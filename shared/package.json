@@ -1,0 +1,15 @@
+{
+  "name": "@flightdeck/shared",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Types shared by the Flight Deck server and web client",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "check": "tsc --noEmit"
+  }
+}
