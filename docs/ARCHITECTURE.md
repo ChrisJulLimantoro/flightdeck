@@ -216,15 +216,49 @@ is what justifies Svelte over the current imperative DOM.
 The API roughly doubles with these (files, diff, git metadata) — the strongest practical argument
 for adopting Nest's module structure now rather than retrofitting later.
 
-## TypeScript 7 — one risk to spike first
+## TypeScript 7 + NestJS — spiked and confirmed working
 
-`typescript@7.0.2` is published and stable. **Risk:** TS 7 is the Go-port compiler, and
-`@nestjs/core@11.2.1` still lists `reflect-metadata` as a peer dependency — Nest DI needs
-`experimentalDecorators` + `emitDecoratorMetadata`.
+The risk was that TS 7 is the Go-port compiler while `@nestjs/core@11.2.1` still depends on
+`reflect-metadata` — Nest DI needs `experimentalDecorators` + `emitDecoratorMetadata`.
 
-**Spike before any porting (~10 min):** scaffold a throwaway Nest app on `typescript@7` and confirm
-a decorated provider compiles and resolves at runtime. If it does not, pin the backend to TS 6.x;
-the Svelte side is unaffected and can use TS 7 regardless. Do not start the migration first.
+**Result: it works.** Verified against `typescript@7.0.2` + `@nestjs/core@11.2.1` with a provider
+injected by constructor and **no `@Inject()` token** — the case that fails if `design:paramtypes`
+is not emitted:
+
+```
+design:paramtypes emitted = [ 'ClaudeDriver' ]
+DI resolved  = claude ran: spike
+```
+
+TS 7 emits decorator metadata correctly and Nest resolves the graph at runtime. **No TS 6.x
+fallback is needed.**
+
+Two TS 7 migration details found while spiking, both affecting `tsconfig.json`:
+
+- **`rootDir` must be explicit** when `outDir` is set, or compilation fails with `TS5011`. TS 6
+  inferred it.
+- **`types: ["node"]` must be listed explicitly**; installing `@types/node` alone is no longer
+  enough to get ambient `process`.
+
+Working baseline `tsconfig.json` for the backend:
+
+```json
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "ES2023",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "esModuleInterop": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "skipLibCheck": true,
+    "types": ["node"]
+  },
+  "include": ["src/**/*"]
+}
+```
 
 ## De-personalisation required before publishing
 
@@ -262,7 +296,8 @@ Scan roots move to `~/.flightdeck/config.json` via `@nestjs/config`, with a firs
 
 ## Roadmap
 
-1. **Spike TS 7 + Nest decorator metadata** — gates everything below.
+1. ~~Spike TS 7 + Nest decorator metadata~~ — **done, passed.** TS 7.0.2 + Nest 11 confirmed
+   working; see the TypeScript section above for the verified `tsconfig.json`.
 2. npm workspaces: `server/`, `web/`, `shared/`. Type the event union in `shared/` first.
 3. Scaffold Nest; port `lib/` to services. `DeriveService` first (pure, easily tested).
 4. Define `EngineDriver`; `ClaudeDriver` real, `CodexDriver` stubbed.
