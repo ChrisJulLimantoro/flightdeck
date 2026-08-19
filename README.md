@@ -22,6 +22,15 @@ Flight Deck with only one engine installed, or none, and still use the board.
 
 ```bash
 corepack enable pnpm     # pnpm is pinned by packageManager; no global install needed
+pnpm go                  # install if needed, build if stale, start, open the board
+```
+
+`pnpm go` is the one-command path: it installs when `node_modules` is missing, rebuilds only when
+`shared/src`, `web/src` or `server/src` is newer than the last build, then starts the server and
+opens the browser. `--build` forces a rebuild, `--install` forces a reinstall, `--no-open` skips the
+browser. The individual steps still work on their own:
+
+```bash
 pnpm install
 pnpm build               # web → web/dist → server/public, and server → server/dist
 pnpm start               # → http://127.0.0.1:4321
@@ -79,6 +88,7 @@ pnpm dev                 # terminal 2 → http://127.0.0.1:5173
 
 | Command | |
 |---|---|
+| `pnpm go` | install + build (only if stale) + start + open the browser |
 | `pnpm check` | `tsc` over `shared/` and `server/`, `svelte-check` over `web/` |
 | `pnpm build` | build both packages and copy the SPA into `server/public` |
 | `pnpm graph` | regenerate [`docs/dependency-graph.md`](docs/dependency-graph.md) |

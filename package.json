@@ -6,6 +6,7 @@
   "description": "Flight Deck — workspace root (the publishable package is server/)",
   "packageManager": "pnpm@11.22.0",
   "scripts": {
+    "go": "node scripts/launch.mjs",
     "start": "pnpm -F flightdeck run start",
     "dev": "pnpm -F @flightdeck/web run dev",
     "build": "pnpm -F @flightdeck/web run build && pnpm -F flightdeck run build",
